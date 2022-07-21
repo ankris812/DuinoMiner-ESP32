@@ -1,1 +1,1 @@
-# DuinoMiner
+# DuinoMiner-ESP32
