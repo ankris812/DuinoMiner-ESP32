@@ -1,6 +1,6 @@
 # DuinoMiner-ESP32
 
-Fork of Duino-Coin for ESP32
+Fork of Duino-Coin for ESP32 (https://github.com/revoxhere/duino-coin/tree/master/ESP32_Code)
 
 Includes the PlatformIO project with the following improvements:
 + Added WiFi provisioning
