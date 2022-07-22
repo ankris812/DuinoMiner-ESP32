@@ -5,7 +5,7 @@ Fork of Duino-Coin for ESP32 (https://github.com/revoxhere/duino-coin/tree/maste
 Includes the PlatformIO project with the following improvements:
 + Added WiFi provisioning
 + Added web settings
-+ Added web OTA update
++ Added web OTA update (without decreasing hashrate as official code)
 + Added default IoT info with last IP part (as temperature) and WiFi signal strength (as humidity)
 
 ### Instructions:
