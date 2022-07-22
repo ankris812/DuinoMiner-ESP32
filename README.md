@@ -12,3 +12,8 @@ Includes the PlatformIO project with the following improvements:
 + Flash your erased ESP32 MCU with current project.
 + For WiFi provisioning and configure connection to your router, connect to the created AP **ESP32-{autoid}** and use default password: "password". Then goes to menu and select **Configure new AP** to add the SSID of your router.
 + Also remember to configure your Duino-Coin account in option menu **Settings**.
+
+### Future:
++ Add ESP8266 & ESP8265 support.
++ Create Mobile apps to simplify/automate WiFi provisioning and settings reconfiguration.
++ Add new web API for Mobile apps.
