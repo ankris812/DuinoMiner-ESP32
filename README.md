@@ -6,6 +6,7 @@ Includes the PlatformIO project with the following improvements:
 + Added WiFi provisioning
 + Added web settings
 + Added web OTA update (without decreasing hashrate as official code)
++ Added network hostname with same rig id (adding extra ".local" to the uri) to easily access web settings 
 + Added default IoT info with last IP part (as temperature) and WiFi signal strength (as humidity)
 
 ### Instructions:
