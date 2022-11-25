@@ -4,7 +4,7 @@
   (  _ \(  )(  )(_  _)( \( )(  _  )___  / __)(  _  )(_  _)( \( )
    )(_) ))(__)(  _)(_  )  (  )(_)((___)( (__  )(_)(  _)(_  )  (
   (____/(______)(____)(_)\_)(_____)     \___)(_____)(____)(_)\_)
-  Official code for ESP32 boards                    version 3.18
+  Official code for ESP32 boards                    version 3.3
 
   Duino-Coin Team & Community 2019-2022 © MIT Licensed
   https://duinocoin.com
@@ -44,7 +44,7 @@ String MINER_KEY;
   Adafruit_AHTX0 aht;
 #endif
 
-#define BLINK_SHARE_FOUND    1
+
 #define BLINK_SETUP_COMPLETE 2
 #define BLINK_CLIENT_CONNECT 3
 #define BLINK_RESET_DEVICE   5
@@ -161,7 +161,7 @@ String DEVICE = "ESP32";
 const char * POOLPICKER_URL[] = {"https://server.duinocoin.com/getPool"};
 //const char * MINER_BANNER = "Official ESP32 Miner";
 String MINER_BANNER = "DuinoMiner " + DEVICE;
-String MINER_VER = "3.2";
+String MINER_VER = "3.3";
 String pool_name = "";
 String host = "";
 String node_id = "";
@@ -416,7 +416,7 @@ void UpdatePool() {
         totShares += TaskThreadData[i].shares;
   }
   avgDiff /= NUMBEROFCORES;
-  
+
   s.replace("@@HASHRATE@@", String(totHash / 1000));
   s.replace("@@DIFF@@", String(avgDiff / 100));
   s.replace("@@SHARES@@", String(totShares));
@@ -454,15 +454,19 @@ void WiFireconnect(void *pvParameters) {
       Serial.println("Rig name: " + RIG_IDENTIFIER);
       Serial.println();
 
-      if (!MDNS.begin(RIG_IDENTIFIER.c_str())) {
-        Serial.println("mDNS unavailable");
-      }
-      MDNS.addService("http", "tcp", 80);
-      Serial.print("Configured mDNS for dashboard on http://" 
-                    + RIG_IDENTIFIER
-                    + ".local (or http://"
-                    + WiFi.localIP().toString()
-                    + ")");
+      #ifdef WEB_DASHBOARD
+        if (!MDNS.begin(RIG_IDENTIFIER)) {
+          Serial.println("mDNS unavailable");
+        }
+        MDNS.addService("http", "tcp", 80);
+        Serial.print("Configured mDNS for dashboard on http://"
+                      + String(RIG_IDENTIFIER)
+                      + ".local (or http://"
+                      + WiFi.localIP().toString()
+                      + ")");
+        server.on("/", dashboard);
+        server.begin();
+      #endif
 
       //portal.begin();
 
@@ -585,7 +589,7 @@ void TaskMining(void *pvParameters) {
         jobClient.print("JOB," + String(DUCO_USER) + ",ESP32," + String(MINER_KEY) + "," +
                         String(temp.temperature) + "@" + String(hum.relative_humidity) +  MSGNEWLINE);
       #endif
-      
+
       while (!jobClient.available()) {
         if (!jobClient.connected()) break;
         delay(10);
@@ -630,6 +634,7 @@ void TaskMining(void *pvParameters) {
       bool ignoreHashrate = false;
 
       // Try to find the nonce which creates the expected hash
+      digitalWrite(LED_BUILTIN, HIGH)
       for (unsigned long nonceCalc = 0; nonceCalc <= TaskThreadData[taskId].difficulty; nonceCalc++) {
         // Define hash under Test
         hashUnderTest = previousHash + String(nonceCalc);
@@ -647,12 +652,12 @@ void TaskMining(void *pvParameters) {
         // Check if we have found the nonce for the expected hash
         if ( memcmp( shaResult, expectedHashBytes, sizeof(shaResult) ) == 0 ) {
           // Found the nonce submit it to the server
-          Serial.println(String(taskCoreName + " found a correct hash using nonce: " + nonceCalc ));
 
+          digitalWrite(LED_BUILTIN, LOW)
           // Calculate mining time
           float elapsedTime = (micros() - startTime) / 1000.0 / 1000.0; // Total elapsed time in seconds
           TaskThreadData[taskId].hashrate = nonceCalc / elapsedTime;
-
+          Serial.println(String(taskCoreName + " found a correct hash using nonce: " + nonceCalc ));
           // Validate connection
           if (!jobClient.connected()) {
             Serial.println(String(taskCoreName + " lost connection - reconnecting..."));
@@ -687,16 +692,7 @@ void TaskMining(void *pvParameters) {
           TaskThreadData[taskId].shares++;
           if (LED_BLINKING) digitalWrite(LED_BUILTIN, HIGH);
 
-          // Validate Hashrate
-          if ( TaskThreadData[taskId].hashrate < 4000 && !ignoreHashrate) {
-            // Hashrate is low so restart esp
-            Serial.println(String(taskCoreName + " has low hashrate: " + (TaskThreadData[taskId].hashrate / 1000) + "kH/s, job feedback: " + feedback + " - restarting..."));
-            jobClient.flush();
-            jobClient.stop();
-            blink(BLINK_RESET_DEVICE);
-            esp_restart();
-          }
-          else {
+
             // Print statistics
             Serial.println(String(taskCoreName + " retrieved job feedback: " + feedback + ", hashrate: " + (TaskThreadData[taskId].hashrate / 1000) + "kH/s, share #" + TaskThreadData[taskId].shares));
           }
