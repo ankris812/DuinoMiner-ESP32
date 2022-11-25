@@ -169,7 +169,7 @@ int port = 0;
 int walletid = 0;
 volatile int wifi_state = 0;
 volatile int wifi_prev_state = WL_CONNECTED;
-//volatile bool ota_state = false;
+volatile bool ota_state = false;
 volatile char chip_id[23];
 String RIG_ID;
 
@@ -521,6 +521,10 @@ void TaskMining(void *pvParameters) {
 
   // Start main thread loop
   for (;;) {
+    // If OTA needs to be preformed reset the task watchdog
+    if (ota_state)
+      esp_task_wdt_reset();
+
     // Wait for a valid network connection
     while (wifi_state != WL_CONNECTED) {
       delay(1000);
@@ -574,8 +578,7 @@ void TaskMining(void *pvParameters) {
       jobClient.flush();
 
       #if !(defined(USE_DHT) || defined(USE_AHT))
-        jobClient.print("JOB," + String(DUCO_USER) + ",ESP32," + String(MINER_KEY) + "," +
-                      String(WiFi.localIP()[3]) + "@" + getRSSIPercentage() + MSGNEWLINE);
+        jobClient.print("JOB," + String(DUCO_USER) + ",ESP32," + String(MINER_KEY) + MSGNEWLINE);
       #elif defined(USE_DHT)
         int temp = dht.readTemperature();
         int hum = dht.readHumidity();
@@ -589,7 +592,7 @@ void TaskMining(void *pvParameters) {
         jobClient.print("JOB," + String(DUCO_USER) + ",ESP32," + String(MINER_KEY) + "," +
                         String(temp.temperature) + "@" + String(hum.relative_humidity) +  MSGNEWLINE);
       #endif
-
+      
       while (!jobClient.available()) {
         if (!jobClient.connected()) break;
         delay(10);
@@ -634,7 +637,7 @@ void TaskMining(void *pvParameters) {
       bool ignoreHashrate = false;
 
       // Try to find the nonce which creates the expected hash
-      digitalWrite(LED_BUILTIN, HIGH)
+      digitalWrite(LED_BUILTIN, HIGH);
       for (unsigned long nonceCalc = 0; nonceCalc <= TaskThreadData[taskId].difficulty; nonceCalc++) {
         // Define hash under Test
         hashUnderTest = previousHash + String(nonceCalc);
@@ -651,13 +654,14 @@ void TaskMining(void *pvParameters) {
 
         // Check if we have found the nonce for the expected hash
         if ( memcmp( shaResult, expectedHashBytes, sizeof(shaResult) ) == 0 ) {
-          // Found the nonce submit it to the server
-
-          digitalWrite(LED_BUILTIN, LOW)
+          // Found the nonce - submit it to the server
+          digitalWrite(LED_BUILTIN, LOW);
+          
           // Calculate mining time
           float elapsedTime = (micros() - startTime) / 1000.0 / 1000.0; // Total elapsed time in seconds
           TaskThreadData[taskId].hashrate = nonceCalc / elapsedTime;
-          Serial.println(String(taskCoreName + " found a correct hash using nonce: " + nonceCalc ));
+          Serial.println(String(taskCoreName + " found a correct hash (" + elapsedTime + "s)"));
+
           // Validate connection
           if (!jobClient.connected()) {
             Serial.println(String(taskCoreName + " lost connection - reconnecting..."));
@@ -692,11 +696,9 @@ void TaskMining(void *pvParameters) {
           TaskThreadData[taskId].shares++;
           if (LED_BLINKING) digitalWrite(LED_BUILTIN, HIGH);
 
-
-            // Print statistics
-            Serial.println(String(taskCoreName + " retrieved job feedback: " + feedback + ", hashrate: " + (TaskThreadData[taskId].hashrate / 1000) + "kH/s, share #" + TaskThreadData[taskId].shares));
-          }
-
+          // Print statistics
+          Serial.println(String(taskCoreName + " retrieved job feedback: " + feedback + ", hashrate: " + (TaskThreadData[taskId].hashrate / 1000) + "kH/s, share #" + TaskThreadData[taskId].shares));
+          
           // Stop current loop and ask for a new job
           break;
         }
@@ -708,6 +710,7 @@ void TaskMining(void *pvParameters) {
     jobClient.stop();
   }
 }
+
 
 void setup() {
   Serial.begin(500000);  // Start serial connection
